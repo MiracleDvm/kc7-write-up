@@ -1,0 +1,65 @@
+// Module 1 — A Rap Beef: An Intro to Security Investigations
+// Workspace: kc7001.eastus/OwlRecords
+// Queries replayed on 2026-10-19. Results confirmed against the game's own scoring.
+
+// --- Section 1: Enough beef for a burger ---
+
+// Step 1 — recon traffic from the tipped-off IP against the OWL Records website
+// Result: 19 rows (2024-04-10)
+InboundNetworkEvents
+| where timestamp between (datetime("2024-04-10T00:00:00") .. datetime("2024-04-11T00:00:00"))
+| where src_ip has "18.66.52.227"
+
+// Step 2 — read what the operator was searching for on the site
+// Result: search queries for Dwake's email address, among other reconnaissance
+InboundNetworkEvents
+| where timestamp between (datetime("2024-04-10T00:00:00") .. datetime("2024-04-11T00:00:00"))
+| where src_ip has "18.66.52.227"
+| project url
+
+// Step 3 — find the password-reset request that used info Dwake leaked in his own diss track
+// Result: 1 row, 2024-04-10 13:02:47Z, reset URL with mother's maiden name + pet's name
+InboundNetworkEvents
+| where timestamp between (datetime("2024-04-10T00:00:00") .. datetime("2024-04-11T00:00:00"))
+| where url has_any("washington", "fluffy")
+| where src_ip has "18.66.52.227"
+
+// --- Section 2: Less beef, more phish ---
+
+// Step 4 — pivot from the known malicious IP to a domain via passive DNS
+// Result: 10 rows, all resolving to betterlyrics4u.com
+PassiveDns
+| where ip == "18.66.52.227"
+
+// Step 5 — find phishing emails that link to that domain
+// Result: 13 emails, senders ghostwritersanonymous@protonmail.com and wemakebeatz@gmail.com
+Email
+| where link has "betterlyrics4u.com"
+
+// Step 6 — identify which roles/employees were targeted by the campaign
+// Result: 10 employees, mostly role "Rapper", plus the "Lead Rapper" (Dwake Audrey)
+let _targets = Email
+| where link has "betterlyrics4u.com"
+| distinct recipient;
+Employees
+| where email_addr in (_targets)
+
+// Step 7 — confirm Dwake clicked the phishing link
+// Result: 1 row, click at 2024-04-15T12:03:12Z
+OutboundNetworkEvents
+| where url == "http://betterlyrics4u.com/share/online/published/enter"
+| where src_ip == "10.10.0.5"
+
+// Step 8 — confirm the adversary validated the stolen credentials
+// Result: 1 row, Successful Login at 2024-04-15T13:03:12Z
+AuthenticationEvents
+| where username == "dwaudrey"
+| where src_ip == "18.66.52.227"
+
+// Step 9 — find what the adversary did after logging in (exfiltration)
+// Result: 10 rows: mailbox searches ("scandal", "confidential", ...) ending in
+// a download of DwakesDirtySecrets.zip from the Drafts folder
+InboundNetworkEvents
+| where timestamp between (datetime("2024-04-12T00:00:00") .. datetime("2024-05-01T00:00:00"))
+| where url has "dwaudrey"
+| where src_ip has "18.66.52.227"
