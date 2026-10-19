@@ -23,7 +23,10 @@ InboundNetworkEvents
 | where timestamp between (datetime("2024-04-10T00:00:00") .. datetime("2024-04-11T00:00:00"))
 | where src_ip has "18.66.52.227"
 ```
-**Result:** 19 requests on 2024-04-10, all from `18.66.52.227`. ![recon traffic](../images/01-a-rap-beef/q5-recon-inbound-events.png)
+**Result:** 19 requests on 2024-04-10, all from `18.66.52.227`.
+
+<img src="../images/01-a-rap-beef/q5-recon-inbound-events.png" alt="recon traffic" width="900">
+
 **What I conclude / next pivot:** the tip checks out — this IP really was actively browsing the site that day. Next I need to see *what* they were looking for.
 
 ### Step 2 — Read what the operator searched for
@@ -35,7 +38,10 @@ InboundNetworkEvents
 | where src_ip has "18.66.52.227"
 | project url
 ```
-**Result:** the URLs show search terms like `what's Dwake's email address?` and `OWL Records rapper contact info`. ![search urls](../images/01-a-rap-beef/q6-recon-urls.png)
+**Result:** the URLs show search terms like `what's Dwake's email address?` and `OWL Records rapper contact info`.
+
+<img src="../images/01-a-rap-beef/q6-recon-urls.png" alt="search urls" width="900">
+
 **What I conclude / next pivot:** the operator was hunting specifically for Dwake's email address — a clear sign this was targeted, not random browsing. That address turned out to be `dwake_audrey@owl-records.com`.
 
 ### Step 3 — Find the account takeover
@@ -47,7 +53,10 @@ InboundNetworkEvents
 | where url has_any("washington", "fluffy")
 | where src_ip has "18.66.52.227"
 ```
-**Result:** one request at `2024-04-10 13:02:47Z`, a `GET` to `/account/security-questions` with both answers filled in. ![password reset](../images/01-a-rap-beef/q12-password-reset.png)
+**Result:** one request at `2024-04-10 13:02:47Z`, a `GET` to `/account/security-questions` with both answers filled in.
+
+<img src="../images/01-a-rap-beef/q12-password-reset.png" alt="password reset" width="900">
+
 **What I conclude / next pivot:** this confirms the account takeover vector — classic OSINT-enabled social engineering, no exploit needed. Dwake's own lyrics gave the attacker everything required to reset his password and, from there, his Instagram.
 
 ### Step 4 — Pivot from IP to phishing domain
@@ -57,7 +66,10 @@ InboundNetworkEvents
 PassiveDns
 | where ip == "18.66.52.227"
 ```
-**Result:** 10 records, all resolving to `betterlyrics4u.com`. ![passive dns](../images/01-a-rap-beef/q3s2-passivedns.png)
+**Result:** 10 records, all resolving to `betterlyrics4u.com`.
+
+<img src="../images/01-a-rap-beef/q3s2-passivedns.png" alt="passive dns" width="900">
+
 **What I conclude / next pivot:** I now have a domain to pivot into the email logs with.
 
 ### Step 5 — Find the phishing emails
@@ -67,7 +79,10 @@ PassiveDns
 Email
 | where link has "betterlyrics4u.com"
 ```
-**Result:** 13 emails sent from two addresses, `ghostwritersanonymous@protonmail.com` and `wemakebeatz@gmail.com`, to various OWL Records staff. ![phishing emails](../images/01-a-rap-beef/q5s2-phishing-emails.png)
+**Result:** 13 emails sent from two addresses, `ghostwritersanonymous@protonmail.com` and `wemakebeatz@gmail.com`, to various OWL Records staff.
+
+<img src="../images/01-a-rap-beef/q5s2-phishing-emails.png" alt="phishing emails" width="900">
+
 **What I conclude / next pivot:** this is a real campaign, not a one-off. I need to know who was targeted and whether anyone bit.
 
 ### Step 6 — Identify the targets
@@ -80,8 +95,13 @@ let _targets = Email
 Employees
 | where email_addr in (_targets)
 ```
-**Result:** 10 employees, almost all with the role `Rapper` — plus one `Lead Rapper`: Dwake Audrey (IP `10.10.0.5`). ![targeting by role](../images/01-a-rap-beef/q8-9-10s2-targeting-by-role.png)
-**What I conclude / next pivot:** Dwake himself was targeted again. His email, subject (`[EXTERNAL] RE: Need a ghostwriter for your next hit?`) and phishing link (`http://betterlyrics4u.com/share/online/published/enter`) came straight from the `Email` table — and notably, the company's email security product marked it `CLEAN`. ![phishing email detail](../images/01-a-rap-beef/q12-13-14s2-phishing-email-detail.png)
+**Result:** 10 employees, almost all with the role `Rapper` — plus one `Lead Rapper`: Dwake Audrey (IP `10.10.0.5`).
+
+<img src="../images/01-a-rap-beef/q8-9-10s2-targeting-by-role.png" alt="targeting by role" width="900">
+
+**What I conclude / next pivot:** Dwake himself was targeted again. His email, subject (`[EXTERNAL] RE: Need a ghostwriter for your next hit?`) and phishing link (`http://betterlyrics4u.com/share/online/published/enter`) came straight from the `Email` table — and notably, the company's email security product marked it `CLEAN`.
+
+<img src="../images/01-a-rap-beef/q12-13-14s2-phishing-email-detail.png" alt="phishing email detail" width="566">
 
 ### Step 7 — Confirm the click
 **Hypothesis:** if Dwake clicked the link, it should appear in `OutboundNetworkEvents`, which records outbound link clicks from the OWL Records network.
@@ -91,7 +111,10 @@ OutboundNetworkEvents
 | where url == "http://betterlyrics4u.com/share/online/published/enter"
 | where src_ip == "10.10.0.5"
 ```
-**Result:** one hit — Dwake clicked the link at `2024-04-15T12:03:12Z`. ![outbound click](../images/01-a-rap-beef/q16s2-outbound-click.png)
+**Result:** one hit — Dwake clicked the link at `2024-04-15T12:03:12Z`.
+
+<img src="../images/01-a-rap-beef/q16s2-outbound-click.png" alt="outbound click" width="900">
+
 **What I conclude / next pivot:** the email bypassed security controls and got a click. Next: did the attacker actually use the harvested credentials?
 
 ### Step 8 — Confirm credential validation
@@ -102,7 +125,10 @@ AuthenticationEvents
 | where username == "dwaudrey"
 | where src_ip == "18.66.52.227"
 ```
-**Result:** one `Successful Login` at `2024-04-15T13:03:12Z` — exactly one hour after the click. ![successful login](../images/01-a-rap-beef/q18-19s2-successful-login.png)
+**Result:** one `Successful Login` at `2024-04-15T13:03:12Z` — exactly one hour after the click.
+
+<img src="../images/01-a-rap-beef/q18-19s2-successful-login.png" alt="successful login" width="900">
+
 **What I conclude / next pivot:** full account compromise confirmed, with a clean one-hour gap between click and login that fits a credential-harvesting-then-replay pattern.
 
 ### Step 9 — Find the exfiltration
@@ -114,7 +140,10 @@ InboundNetworkEvents
 | where url has "dwaudrey"
 | where src_ip has "18.66.52.227"
 ```
-**Result:** 10 requests — searches inside Dwake's mailbox for terms like "scandal" and "confidential", ending in a download from the Drafts folder: `DwakesDirtySecrets.zip`. ![exfiltration](../images/01-a-rap-beef/q20-21s2-exfiltration.png)
+**Result:** 10 requests — searches inside Dwake's mailbox for terms like "scandal" and "confidential", ending in a download from the Drafts folder: `DwakesDirtySecrets.zip`.
+
+<img src="../images/01-a-rap-beef/q20-21s2-exfiltration.png" alt="exfiltration" width="900">
+
 **What I conclude:** the attacker found and exfiltrated sensitive material from Dwake's own inbox, closing the loop on the retaliation campaign.
 
 ## Attack timeline
