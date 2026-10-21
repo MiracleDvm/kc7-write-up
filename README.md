@@ -16,7 +16,7 @@ Path completed on KC7 (verified on my dashboard): **18 October 2026**.
 |---|---|---|
 | 1 | A Rap Beef: An Intro to Security Investigations | [✅ Read](paths/security-analyst-i/modules/01-a-rap-beef.md) |
 | 2 | How to play KC7 | [✅ Read](paths/security-analyst-i/modules/02-how-to-play-kc7.md) |
-| 3 | CloutHaus: Social Media leads to Compromise | ⏳ Coming soon |
+| 3 | CloutHaus: Social Media leads to Compromise | [✅ Read](paths/security-analyst-i/modules/03-clouthaus.md) |
 | 4 | A Scandal in Valdoria: A Political Mystery | ⏳ Coming soon |
 | 5 | VirusTotal Fundamentals | ⏳ Coming soon |
 | 6 | KQL 101: An introduction to Kusto Query Language | ⏳ Coming soon |

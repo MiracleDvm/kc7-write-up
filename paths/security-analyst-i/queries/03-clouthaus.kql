@@ -1,0 +1,73 @@
+// Module 3 — CloutHaus: Social Media leads to Compromise
+// Workspace: kc7001.eastus/CloutHaus
+// Queries replayed on 2026-10-21. Section 1 queries are the ones KC7 prints in the
+// question text; Section 2 queries were constructed from the table schema and the
+// in-game hints, then verified against the known answers.
+
+// --- Section 1: Got Clout? ---
+
+// Step 1 — Afomiya's employee record: email, username, role, MFA status
+// Result: 1 row — afomiya_storm@clouthaus.com, username afstorm, role "Influencer
+// Partner", mfa_enabled: False
+Employees
+| where name contains "afomiya"
+
+// Step 2 — the phishing email impersonating Dior
+// Result: 2 rows. Sender collabs@dior-partners.com, subject "[EXTERNAL] Exclusive
+// Partnership Opportunity with Dior", verdict CLEAN, link
+// https://super-brand-offer.com/login
+Email
+| where recipient == "afomiya_storm@clouthaus.com"
+| where subject contains "dior" or links contains "dior"
+
+// Step 3 — confirm Afomiya clicked the phishing link
+// Result: 2 rows, first click at 2025-04-03T11:20:00Z from her own IP (10.10.0.3)
+OutboundNetworkEvents
+| where url contains "super-brand-offer.com"
+
+// Step 4 — pivot from the phishing domain to its hosting IP
+// Result: 198.51.100.12
+PassiveDns
+| where domain contains "super-brand-offer.com"
+
+// Step 5 — pivot back from that IP to every domain it has ever hosted
+// Result: 3 domains — super-brand-offer.com, dior-partners.com, influencer-deals.net
+// (the same infrastructure reappears later as the exfiltration destination)
+PassiveDns
+| where ip contains "198.51.100.12"
+| distinct domain
+
+// --- Section 2: Inside the Clout Breach ---
+// No query is printed by KC7 for this section — only narrative hints. These were
+// built from the table schema (via "View Tables") and verified against the known
+// answers before being used in the write-up.
+
+// Step 6 — find the suspicious login to Afomiya's company email
+// Result: among 11 logins for "afstorm", one stands out: 2025-04-03T12:20:00Z
+// (~1h after the phishing click), hostname MAIL-SERVER01 (not her usual
+// OQPA-DESKTOP), src_ip 182.45.67.89, user_agent "MSIE 5.0; Windows NT 5.2",
+// result "Successful Login"
+AuthenticationEvents
+| where username == "afstorm"
+
+// Step 7 — pivot the attacker's login IP to its known domains
+// Result: same 3 domains as Step 5 — confirms shared attacker infrastructure
+PassiveDns
+| where ip contains "182.45.67.89"
+| distinct domain
+
+// Step 8 — attacker's reconnaissance against the CloutHaus site
+// Result: 27 rows from 182.45.67.89, all MSIE 5.0. Search terms recovered include
+// "...Afomiya's email+address??", "...Venmo history - is that public??", and
+// "How much would it cost to hire Afomiya for a fake birthday party?"
+InboundNetworkEvents
+| where src_ip == "182.45.67.89"
+
+// Step 9 — auto-forwarding rule exfiltrating Afomiya's mailbox
+// Result: 21 rows, all sender == reply_to == afomiya_storm@clouthaus.com,
+// recipient noreply@influencer-deals.net. Subjects include "[EXTERNAL] [FORWARD]
+// Afomiya's payment details – direct deposit form" and "...passport scan –
+// confidential" (both confirmed below), plus bank statement and tax-document
+// forwards per the question text.
+Email
+| where recipient == "noreply@influencer-deals.net"
