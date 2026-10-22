@@ -19,7 +19,7 @@ Path completed on KC7 (verified on my dashboard): **18 October 2026**.
 | 3 | CloutHaus: Social Media leads to Compromise | [✅ Read](paths/security-analyst-i/modules/03-clouthaus.md) |
 | 4 | A Scandal in Valdoria: A Political Mystery | [✅ Read](paths/security-analyst-i/modules/04-a-scandal-in-valdoria.md) |
 | 5 | VirusTotal Fundamentals | [✅ Read](paths/security-analyst-i/modules/05-virustotal-fundamentals.md) |
-| 6 | KQL 101: An introduction to Kusto Query Language | ⏳ Coming soon |
+| 6 | KQL 101: An introduction to Kusto Query Language | [✅ Read](paths/security-analyst-i/modules/06-kql-101.md) |
 | 7 | Jojo's Hospital: A Ransomware Investigation | ⏳ Coming soon |
 
 Reusable KQL queries live alongside each module under [`paths/security-analyst-i/queries/`](paths/security-analyst-i/queries/).
@@ -53,4 +53,4 @@ See [`CLAUDE.md`](CLAUDE.md) for the full methodology and ground rules behind th
 I'm Miracle, a 2nd-year cybersecurity student at IFRI (Université d'Abomey-Calavi, Benin).
 
 ---
-*Last updated: 2026-10-19.*
+*Last updated: 2026-10-22.*

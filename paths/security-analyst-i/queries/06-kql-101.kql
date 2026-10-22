@@ -1,0 +1,96 @@
+// Module 6 — KQL 101: An introduction to Kusto Query Language
+// Dataset: Jojo's Hospital (kc7001.eastus/JoJosHospital) — same company as Module 7,
+// used here purely as practice data for KQL syntax (no incident in this module itself).
+// Queries replayed and verified on 2026-10-22.
+
+// --- Rows, columns, and exact match ---
+Employees
+| take 10
+// → 10 rows
+
+Employees
+| where role == "Pharmacist"
+// → 19 pharmacists
+
+Employees
+| count
+// → 321 employees total
+
+Employees
+| distinct role
+// → 23 distinct roles
+
+Employees
+| where name == "Noemi Tep"
+// → noemi_tep@jojoshospital.org
+
+// --- contains ---
+Employees
+| where role contains "security"
+// → role "Security Officer" (5 rows, incl. Mary Lanier)
+
+// --- has vs contains ---
+// KC7 only asks you to run the `has` version below (answer: 613) — the `contains`
+// over-matching example ("Healthcare"/"Healthy") is narrative, not a posed exercise.
+// Ran contains myself out of curiosity (not requested by KC7): also 613 on this
+// dataset, so the gap KC7 describes doesn't actually show up here.
+Email
+| where subject has "health"
+| count
+// → 613 (KC7's own question)
+
+Email
+| where subject contains "health"
+| count
+// → 613 (my own extra check, not asked by KC7)
+
+// --- !contains ---
+Email
+| where recipient == "noemi_tep@jojoshospital.org"
+| where sender !contains "jojoshospital"
+// → external senders to Noemi Tep; last one: skirmishes.converts@yandex.com
+
+// --- and / or / in ---
+AuthenticationEvents
+| where src_ip == "10.10.0.144" and result == "Failed Login"
+// → 59 failed logins
+
+AuthenticationEvents
+| where (src_ip == "10.10.0.144" or src_ip == "10.10.0.86") and result == "Failed Login"
+// → 131 logins
+
+AuthenticationEvents
+| where src_ip in ("10.10.0.144", "10.10.0.86", "<ip3>", "<ip4>") and result == "Failed Login"
+// → 169 failed logins across 4 IPs (full IP list: TODO: à vérifier — non capturé dans les notes de session)
+
+// --- Pivoting across tables, without a variable ---
+Employees
+| where name == "Nancy Roberts"
+// → ip_addr 10.10.0.30 (revealed via KC7's own comment/example)
+
+OutboundNetworkEvents
+| where src_ip == "10.10.0.30"
+| distinct url
+| count
+// → 80 distinct sites visited
+
+// --- Pivoting across tables, with let ---
+// KC7's own example query stops here (no distinct/count) — the question asks for
+// the number of visit EVENTS, not distinct URLs. First attempt mistakenly added
+// `| distinct url | count` and got 594, which didn't match KC7's answer of 668.
+let mary_ips = Employees
+| where name has "Mary"
+| distinct ip_addr;
+OutboundNetworkEvents
+| where src_ip in (mary_ips)
+// → 668 records (replayed 2026-10-22, req 133223-c9e880b95f) — matches KC7's answer
+
+// let, second example — note this one filters on `username`, not `ip_addr`/`src_ip`
+// like the first let example above (different field in Employees/AuthenticationEvents).
+let mary_usernames = Employees
+| where name has "Mary"
+| distinct username;
+AuthenticationEvents
+| where username in (mary_usernames)
+| count
+// → 810 authentication attempts (replayed 2026-10-22, req 133223-579a2c2009) — matches KC7's answer
