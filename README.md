@@ -1,11 +1,11 @@
 # KC7 Write-ups
 
-Security investigation write-ups from [KC7](https://www.kc7cyber.com/) — a free, browser-based
+Security investigation write-ups from [KC7](https://www.kc7cyber.com/), a free, browser-based
 training platform that teaches threat hunting and SOC analysis through realistic, narrative-driven
 cases investigated with KQL (Kusto Query Language).
 
 Each write-up documents my own investigation process: the hypotheses I formed, the KQL queries I
-ran, what the data showed, and how one finding led to the next — not a plain list of submitted
+ran, what the data showed, and how one finding led to the next, not a plain list of submitted
 answers.
 
 ## 🏅 Security Analyst I
